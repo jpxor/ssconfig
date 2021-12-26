@@ -67,6 +67,7 @@ func (ssc Set) Load(conf interface{}) error {
 			confError.Fields = append(confError.Fields, fmt.Sprintf("failed to parse file: %s", err.Error()))
 			log.Printf("ssconfig: failed to parse file: %s\n", ssc.FilePath)
 		}
+
 	} else if ssc.FilePath != "" {
 		log.Printf("ssconfig: %s (file not found)\n", ssc.FilePath)
 	}
@@ -130,6 +131,7 @@ func (ssc Set) Load(conf interface{}) error {
 			}
 		}
 	}
+
 	if len(confError.Fields) > 0 {
 		return confError
 	}

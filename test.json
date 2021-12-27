@@ -1,0 +1,16 @@
+{
+    "FileInt":42,
+    "FileString":"42",
+    "FileList": [4.2, 4.2, 4.2],
+    "FileMap": {
+        "answer": 42
+    },
+    "OverwriteInt":1,
+    "OverwriteInt8":1,
+    "OverwriteInt16":1,
+    "OverwriteInt32":1,
+    "OverwriteInt64":1,
+    "OverwriteString":"1",
+    "OverwriteFloat32":1.2,
+    "Overwrite64":1.2
+}

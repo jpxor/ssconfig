@@ -29,9 +29,29 @@ import (
 	"testing"
 )
 
-func TestSuccessPaths(t *testing.T) {
-	type testConfig struct {
+func initEnvVars() {
+	os.Setenv("EnvVarInt", "42")
+	os.Setenv("EnvVarInt8", "42")
+	os.Setenv("EnvVarInt16", "42")
+	os.Setenv("EnvVarInt32", "42")
+	os.Setenv("EnvVarInt64", "42")
+	os.Setenv("EnvVarString", "42")
+	os.Setenv("EnvVarFloat32", "4.2")
+	os.Setenv("EnvVarFloat64", "4.2")
 
+	os.Setenv("OverwriteInt", "42")
+	os.Setenv("OverwriteInt8", "42")
+	os.Setenv("OverwriteInt16", "42")
+	os.Setenv("OverwriteInt32", "42")
+	os.Setenv("OverwriteInt64", "42")
+	os.Setenv("OverwriteString", "42")
+	os.Setenv("OverwriteFloat32", "4.2")
+	os.Setenv("OverwriteFloat64", "4.2")
+}
+
+func TestSuccessPaths(t *testing.T) {
+	initEnvVars()
+	type testestconfig struct {
 		// File only
 		FileInt    int
 		FileString string
@@ -59,103 +79,46 @@ func TestSuccessPaths(t *testing.T) {
 		OverwriteFloat64 float64
 	}
 
-	os.Setenv("EnvVarInt", "42")
-	os.Setenv("EnvVarInt8", "42")
-	os.Setenv("EnvVarInt16", "42")
-	os.Setenv("EnvVarInt32", "42")
-	os.Setenv("EnvVarInt64", "42")
-	os.Setenv("EnvVarString", "42")
-	os.Setenv("EnvVarFloat32", "4.2")
-	os.Setenv("EnvVarFloat64", "4.2")
+	var testconf testestconfig
+	Set{FilePath: "./test.json"}.Load(&testconf)
 
-	os.Setenv("OverwriteInt", "42")
-	os.Setenv("OverwriteInt8", "42")
-	os.Setenv("OverwriteInt16", "42")
-	os.Setenv("OverwriteInt32", "42")
-	os.Setenv("OverwriteInt64", "42")
-	os.Setenv("OverwriteString", "42")
-	os.Setenv("OverwriteFloat32", "4.2")
-	os.Setenv("OverwriteFloat64", "4.2")
+	answerconf := testestconfig{
+		FileInt:    42,
+		FileString: "42",
+		FileList:   []float32{4.2, 4.2, 4.2},
+		FileMap:    map[string]int{"answer": 42},
 
-	var tconf testConfig
-	Set{FilePath: "./test.json"}.Load(&tconf)
+		EnvVarInt:     42,
+		EnvVarInt8:    42,
+		EnvVarInt16:   42,
+		EnvVarInt32:   42,
+		EnvVarInt64:   42,
+		EnvVarString:  "42",
+		EnvVarFloat32: 4.2,
+		EnvVarFloat64: 4.2,
 
-	answerInt := 42
-	answerFloat := 4.2
-	answerString := "42"
-	answerList := []float32{4.2, 4.2, 4.2}
-	answerMap := map[string]int{"answer": 42}
+		OverwriteInt:     42,
+		OverwriteInt8:    42,
+		OverwriteInt16:   42,
+		OverwriteInt32:   42,
+		OverwriteInt64:   42,
+		OverwriteString:  "42",
+		OverwriteFloat32: 4.2,
+		OverwriteFloat64: 4.2,
+	}
 
-	t.Run("Load from File", func(t *testing.T) {
-		if tconf.FileInt != answerInt {
-			t.Errorf("got %d, want %d", tconf.FileInt, answerInt)
-		}
-		if tconf.FileString != answerString {
-			t.Errorf("got '%s', want '%s'", tconf.FileString, answerString)
-		}
-		if !reflect.DeepEqual(tconf.FileList, answerList) {
-			t.Errorf("got '%+v', want '%+v'", tconf.FileList, answerList)
-		}
-		if !reflect.DeepEqual(tconf.FileMap, answerMap) {
-			t.Errorf("got '%+v', want '%+v'", tconf.FileMap, answerMap)
-		}
-	})
+	if !reflect.DeepEqual(testconf, answerconf) {
+		testValue := reflect.ValueOf(testconf)
+		answerValue := reflect.ValueOf(answerconf)
+		confType := testValue.Type()
 
-	t.Run("Load from Env", func(t *testing.T) {
-		if tconf.EnvVarInt != answerInt {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt, answerInt)
-		}
-		if tconf.EnvVarInt8 != int8(answerInt) {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt8, answerInt)
-		}
-		if tconf.EnvVarInt16 != int16(answerInt) {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt16, answerInt)
-		}
-		if tconf.EnvVarInt32 != int32(answerInt) {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt32, answerInt)
-		}
-		if tconf.EnvVarInt64 != int64(answerInt) {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt64, answerInt)
-		}
+		for i := 0; i < confType.NumField(); i++ {
+			t.Run(confType.Field(i).Name, func(t *testing.T) {
 
-		if tconf.EnvVarString != answerString {
-			t.Errorf("got '%s', want '%s'", tconf.EnvVarString, answerString)
+				if !reflect.DeepEqual(testValue.Field(i).Interface(), answerValue.Field(i).Interface()) {
+					t.Errorf("got %+v, want %+v", testValue.Field(i), answerValue.Field(i))
+				}
+			})
 		}
-
-		if tconf.EnvVarFloat32 != float32(answerFloat) {
-			t.Errorf("got %f, want %f", tconf.EnvVarFloat32, answerFloat)
-		}
-		if tconf.EnvVarFloat64 != answerFloat {
-			t.Errorf("got %f, want %f", tconf.EnvVarFloat64, answerFloat)
-		}
-	})
-
-	t.Run("Env Overwrites File", func(t *testing.T) {
-		if tconf.OverwriteInt != answerInt {
-			t.Errorf("got %d, want %d", tconf.EnvVarInt, answerInt)
-		}
-		if tconf.OverwriteInt8 != int8(answerInt) {
-			t.Errorf("got %d, want %d", tconf.OverwriteInt8, answerInt)
-		}
-		if tconf.OverwriteInt16 != int16(answerInt) {
-			t.Errorf("got %d, want %d", tconf.OverwriteInt16, answerInt)
-		}
-		if tconf.OverwriteInt32 != int32(answerInt) {
-			t.Errorf("got %d, want %d", tconf.OverwriteInt32, answerInt)
-		}
-		if tconf.OverwriteInt64 != int64(answerInt) {
-			t.Errorf("got %d, want %d", tconf.OverwriteInt64, answerInt)
-		}
-
-		if tconf.OverwriteString != answerString {
-			t.Errorf("got '%s', want '%s'", tconf.OverwriteString, answerString)
-		}
-
-		if tconf.OverwriteFloat32 != float32(answerFloat) {
-			t.Errorf("got %f, want %f", tconf.OverwriteFloat32, answerFloat)
-		}
-		if tconf.OverwriteFloat64 != answerFloat {
-			t.Errorf("got %f, want %f", tconf.OverwriteFloat64, answerFloat)
-		}
-	})
+	}
 }

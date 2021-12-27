@@ -25,6 +25,7 @@ package ssconfig
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -33,9 +34,16 @@ import (
 	"strconv"
 )
 
+// FieldError identifies a field which failed to load
+// and its associated error
+type FieldError struct {
+	Field string
+	Error error
+}
+
 // ConfigError lists all fields that failed to load
 type ConfigError struct {
-	Fields []string
+	Fields []FieldError
 }
 
 // Error lists all config errors
@@ -50,12 +58,12 @@ type Set struct {
 }
 
 // Load with default (nil) options
-func Load(conf interface{}) error {
+func Load(conf interface{}) *ConfigError {
 	return Set{}.Load(conf)
 }
 
 // Load with Set config options
-func (ssc Set) Load(conf interface{}) error {
+func (ssc Set) Load(conf interface{}) *ConfigError {
 	var confError ConfigError
 
 	// load values from file if it exists
@@ -64,11 +72,12 @@ func (ssc Set) Load(conf interface{}) error {
 		err = json.Unmarshal(confFile, &conf)
 
 		if err != nil {
-			confError.Fields = append(confError.Fields, fmt.Sprintf("failed to parse file: %s", err.Error()))
+			confError.Fields = append(confError.Fields, FieldError{ssc.FilePath, err})
 			log.Printf("ssconfig: failed to parse file: %s\n", ssc.FilePath)
 		}
 
 	} else if ssc.FilePath != "" {
+		confError.Fields = append(confError.Fields, FieldError{ssc.FilePath, err})
 		log.Printf("ssconfig: %s (file not found)\n", ssc.FilePath)
 	}
 
@@ -109,7 +118,7 @@ func (ssc Set) Load(conf interface{}) error {
 							field.SetInt(ival)
 						} else {
 							log.Printf("ssconfig: failed to parse env %s as int64\n", confName)
-							confError.Fields = append(confError.Fields, confName)
+							confError.Fields = append(confError.Fields, FieldError{confName, err})
 						}
 
 					case reflect.Float32:
@@ -120,12 +129,12 @@ func (ssc Set) Load(conf interface{}) error {
 							field.SetFloat(fval)
 						} else {
 							log.Printf("ssconfig: failed to parse env %s as float64\n", confName)
-							confError.Fields = append(confError.Fields, confName)
+							confError.Fields = append(confError.Fields, FieldError{confName, err})
 						}
 
 					default:
 						log.Printf("ssconfig: %s type not supported by env: %+v\n", confName, field.Kind())
-						confError.Fields = append(confError.Fields, fmt.Sprintf("%s: type not supported", confName))
+						confError.Fields = append(confError.Fields, FieldError{confName, errors.New("type not supported")})
 					}
 				}
 			}
@@ -133,7 +142,7 @@ func (ssc Set) Load(conf interface{}) error {
 	}
 
 	if len(confError.Fields) > 0 {
-		return confError
+		return &confError
 	}
 	return nil
 }

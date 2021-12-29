@@ -50,11 +50,7 @@ func main() {
 ## Documentation
 See the example above, that's 99% what you need to know.
 The other 1%:
- - ssconfig supports loading all types from file via "encoding/json" unmarshal. You can use the json struct tags.
- - ssconfig supports loading these types from environment variables:
-    - Int8/Int16/Int32/Int64/Int
-    - Float32/Float64,
-    - String
+ - ssconfig supports loading all types via "encoding/json" unmarshal. You can use the json struct tags for loading from config file.
  - ssconfig logs to default logger. It names the Fields loaded, but not their values (keeps any private api keys or passwords out of the logs).
  - need default values? Then set them before loading, the load will overwrite them.
 

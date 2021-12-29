@@ -24,11 +24,8 @@
 package ssconfig
 
 import (
-	"encoding/json"
-	"errors"
 	"os"
 	"reflect"
-	"strconv"
 	"testing"
 )
 
@@ -41,6 +38,7 @@ func TestSuccessPaths(t *testing.T) {
 	os.Setenv("EnvVarString", "42")
 	os.Setenv("EnvVarFloat32", "4.2")
 	os.Setenv("EnvVarFloat64", "4.2")
+	os.Setenv("EnvVarIntSlice", "[42, 42, 42]")
 
 	os.Setenv("OverwriteInt", "42")
 	os.Setenv("OverwriteInt8", "42")
@@ -59,14 +57,15 @@ func TestSuccessPaths(t *testing.T) {
 		FileMap    map[string]int
 
 		// Env var only
-		EnvVarInt     int
-		EnvVarInt8    int8
-		EnvVarInt16   int16
-		EnvVarInt32   int32
-		EnvVarInt64   int64
-		EnvVarString  string
-		EnvVarFloat32 float32
-		EnvVarFloat64 float64
+		EnvVarInt      int
+		EnvVarInt8     int8
+		EnvVarInt16    int16
+		EnvVarInt32    int32
+		EnvVarInt64    int64
+		EnvVarString   string
+		EnvVarFloat32  float32
+		EnvVarFloat64  float64
+		EnvVarIntSlice []int
 
 		// Env var overwrite file
 		OverwriteInt     int
@@ -92,14 +91,15 @@ func TestSuccessPaths(t *testing.T) {
 		FileList:   []float32{4.2, 4.2, 4.2},
 		FileMap:    map[string]int{"answer": 42},
 
-		EnvVarInt:     42,
-		EnvVarInt8:    42,
-		EnvVarInt16:   42,
-		EnvVarInt32:   42,
-		EnvVarInt64:   42,
-		EnvVarString:  "42",
-		EnvVarFloat32: 4.2,
-		EnvVarFloat64: 4.2,
+		EnvVarInt:      42,
+		EnvVarInt8:     42,
+		EnvVarInt16:    42,
+		EnvVarInt32:    42,
+		EnvVarInt64:    42,
+		EnvVarString:   "42",
+		EnvVarFloat32:  4.2,
+		EnvVarFloat64:  4.2,
+		EnvVarIntSlice: []int{42, 42, 42},
 
 		OverwriteInt:     42,
 		OverwriteInt8:    42,
@@ -133,7 +133,11 @@ func TestDefaultLoad(t *testing.T) {
 		FromEnv string
 	}
 	var tconf testconf
-	Load(&tconf)
+	err := Load(&tconf)
+
+	if err != nil {
+		t.Errorf("got %+v, expected no errors", err.Error())
+	}
 
 	if tconf.FromEnv != "42" {
 		t.Errorf("got %+v, want %+v", tconf.FromEnv, "42")
@@ -149,21 +153,11 @@ func TestErrorFileNotFound(t *testing.T) {
 	err := Set{FilePath: "no/file.conf"}.Load(&tconf)
 
 	// check for expected error
-	if err == nil {
-		t.Error("got no error, expected file not found")
+	if err == nil || len(err.Fields) != 1 {
+		t.Errorf("got %+v, expected 1 file not found error", err)
 		return
 	}
-	if len(err.Fields) != 1 {
-		t.Errorf("got %d errors, expected 1 error", len(err.Fields))
-		return
-	}
-	var expectedErr *os.PathError
-	testErr := err.Fields[0].Error
-
-	if !errors.As(testErr, &expectedErr) {
-		t.Errorf("got %s, expected os.PathError", testErr.Error())
-		return
-	}
+	t.Log(err.Error())
 
 	// ensure load from env vars still succeeds
 	if tconf.FromEnv != "42" {
@@ -181,21 +175,11 @@ func TestErrorFileSyntax(t *testing.T) {
 	err := Set{FilePath: "test.yml"}.Load(&tconf)
 
 	// check for expected error
-	if err == nil {
-		t.Error("got no error, expected syntax error")
+	if err == nil || len(err.Fields) != 1 {
+		t.Errorf("got %+v, expected 1 syntax", err)
 		return
 	}
-	if len(err.Fields) != 1 {
-		t.Errorf("got %d errors, expected 1 error", len(err.Fields))
-		return
-	}
-	var expectedErr *json.SyntaxError
-	testErr := err.Fields[0].Error
-
-	if !errors.As(testErr, &expectedErr) {
-		t.Errorf("got %s, expected json.SyntaxError", testErr.Error())
-		return
-	}
+	t.Log(err.Error())
 
 	// ensure load from env vars still succeeds
 	if tconf.FromEnv != "42" {
@@ -215,75 +199,9 @@ func TestErrorEnvParse(t *testing.T) {
 	err := Load(&tconf)
 
 	// check for expected errors
-	if err == nil {
-		t.Error("got no error, expected parses error")
+	if err == nil || len(err.Fields) != 2 {
+		t.Errorf("got %+v, expected 2 parse errors", err)
 		return
 	}
-	if len(err.Fields) != 2 {
-		t.Errorf("got %d errors, expected 2 parse errors", len(err.Fields))
-		return
-	}
-	var expectedErr *strconv.NumError
-	for _, field := range err.Fields {
-		testErr := field.Error
-
-		if !errors.As(testErr, &expectedErr) {
-			t.Errorf("got %s, expected strconv.NumError", testErr.Error())
-			return
-		}
-	}
-
-}
-
-func TestErrorNotSupported(t *testing.T) {
-	os.Setenv("EnvList", "[42,42]")
-
-	type testconf struct {
-		EnvList []int
-	}
-	var tconf testconf
-	err := Load(&tconf)
-
-	// check for expected errors
-	if err == nil {
-		t.Error("got no error, expected ssconfig.TypeError")
-		return
-	}
-	if len(err.Fields) != 1 {
-		t.Errorf("got %d errors, expected 1 error", len(err.Fields))
-		return
-	}
-	var expectedErr *TypeError
-	for _, field := range err.Fields {
-		testErr := field.Error
-
-		if !errors.As(testErr, &expectedErr) {
-			t.Errorf("got '%s', expected ssconfig.TypeError", testErr.Error())
-			return
-		}
-	}
-}
-
-func TestErrorPrints(t *testing.T) {
-	innerErr := errors.New("Error")
-	err := ConfigError{
-		[]FieldError{{
-			"Field",
-			innerErr,
-		}},
-	}
-	expected := "ConfigErrors: [{Field:Field Error:Error}]"
-	result := err.Error()
-
-	if result != expected {
-		t.Errorf("unexpected error string\ngot:  '%s'\nwant: '%s'", result, expected)
-	}
-
-	err2 := TypeError{"TypeName"}
-	result = err2.Error()
-	expected = "TypeName type not supported"
-
-	if result != expected {
-		t.Errorf("unexpected error string\ngot:  '%s'\nwant: '%s'", result, expected)
-	}
+	t.Log(err.Error())
 }

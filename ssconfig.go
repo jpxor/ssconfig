@@ -30,7 +30,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"strconv"
 )
 
 // FieldError identifies a field which failed to load
@@ -50,15 +49,6 @@ func (err ConfigError) Error() string {
 	return fmt.Sprintf("ConfigErrors: %+v", err.Fields)
 }
 
-// TypeError for unsupported types
-type TypeError struct {
-	Type string
-}
-
-func (err TypeError) Error() string {
-	return fmt.Sprintf("%s type not supported", err.Type)
-}
-
 // Set config options
 type Set struct {
 	EnvPrefix string
@@ -76,12 +66,13 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 
 	// load values from file if it exists
 	if confFile, err := ioutil.ReadFile(ssc.FilePath); err == nil {
-		log.Printf("ssconfig: %s\n", ssc.FilePath)
-		err = json.Unmarshal(confFile, &conf)
 
+		err = json.Unmarshal(confFile, &conf)
 		if err != nil {
 			confError.Fields = append(confError.Fields, FieldError{ssc.FilePath, err})
 			log.Printf("ssconfig: failed to parse file: %s\n", ssc.FilePath)
+		} else {
+			log.Printf("ssconfig: %s ✓", ssc.FilePath)
 		}
 
 	} else if ssc.FilePath != "" {
@@ -99,51 +90,28 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 
 			field := confValue.Field(i)
 			confName := confType.Field(i).Name
+
 			if field.CanSet() {
 				env := os.Getenv(ssc.EnvPrefix + confName)
 				if env != "" {
 
-					log.Printf("ssconfig: %s\n", ssc.EnvPrefix+confName)
 					switch field.Kind() {
 
 					case reflect.String:
+						// string is handled separately since
+						// json.Unmarshal expects quotes around
+						// string values
 						field.SetString(env)
 
-					case reflect.Int8:
-						fallthrough
-
-					case reflect.Int16:
-						fallthrough
-
-					case reflect.Int32:
-						fallthrough
-
-					case reflect.Int64:
-						fallthrough
-
-					case reflect.Int:
-						if ival, err := strconv.ParseInt(env, 10, 64); err == nil && !field.OverflowInt(ival) {
-							field.SetInt(ival)
-						} else {
-							log.Printf("ssconfig: failed to parse env %s as int64\n", confName)
-							confError.Fields = append(confError.Fields, FieldError{confName, err})
-						}
-
-					case reflect.Float32:
-						fallthrough
-
-					case reflect.Float64:
-						if fval, err := strconv.ParseFloat(env, 64); err == nil && !field.OverflowFloat(fval) {
-							field.SetFloat(fval)
-						} else {
-							log.Printf("ssconfig: failed to parse env %s as float64\n", confName)
-							confError.Fields = append(confError.Fields, FieldError{confName, err})
-						}
-
 					default:
-						log.Printf("ssconfig: %s type not supported by env: %+v\n", confName, field.Kind())
-						confError.Fields = append(confError.Fields, FieldError{confName, &TypeError{field.Kind().String()}})
+						err := json.Unmarshal([]byte(env), field.Addr().Interface())
+						if err != nil {
+							log.Printf("ssconfig: %s (type %s): %s\n", confName, field.Type().String(), err)
+							confError.Fields = append(confError.Fields, FieldError{confName, err})
+							continue
+						}
 					}
+					log.Printf("ssconfig: %s ✓", ssc.EnvPrefix+confName)
 				}
 			}
 		}

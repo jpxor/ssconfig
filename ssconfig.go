@@ -25,7 +25,6 @@ package ssconfig
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -49,6 +48,15 @@ type ConfigError struct {
 // Error lists all config errors
 func (err ConfigError) Error() string {
 	return fmt.Sprintf("ConfigErrors: %+v", err.Fields)
+}
+
+// TypeError for unsupported types
+type TypeError struct {
+	Type string
+}
+
+func (err TypeError) Error() string {
+	return fmt.Sprintf("%s type not supported", err.Type)
 }
 
 // Set config options
@@ -134,7 +142,7 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 
 					default:
 						log.Printf("ssconfig: %s type not supported by env: %+v\n", confName, field.Kind())
-						confError.Fields = append(confError.Fields, FieldError{confName, errors.New("type not supported")})
+						confError.Fields = append(confError.Fields, FieldError{confName, &TypeError{field.Kind().String()}})
 					}
 				}
 			}

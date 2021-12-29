@@ -80,7 +80,11 @@ func TestSuccessPaths(t *testing.T) {
 	}
 
 	var testconf testestconfig
-	Set{FilePath: "./test.json"}.Load(&testconf)
+	err := Set{FilePath: "./test.json"}.Load(&testconf)
+
+	if err != nil {
+		t.Errorf("got %+v, expected no errors", err.Error())
+	}
 
 	answerconf := testestconfig{
 		FileInt:    42,
@@ -229,4 +233,57 @@ func TestErrorEnvParse(t *testing.T) {
 		}
 	}
 
+}
+
+func TestErrorNotSupported(t *testing.T) {
+	os.Setenv("EnvList", "[42,42]")
+
+	type testconf struct {
+		EnvList []int
+	}
+	var tconf testconf
+	err := Load(&tconf)
+
+	// check for expected errors
+	if err == nil {
+		t.Error("got no error, expected ssconfig.TypeError")
+		return
+	}
+	if len(err.Fields) != 1 {
+		t.Errorf("got %d errors, expected 1 error", len(err.Fields))
+		return
+	}
+	var expectedErr *TypeError
+	for _, field := range err.Fields {
+		testErr := field.Error
+
+		if !errors.As(testErr, &expectedErr) {
+			t.Errorf("got '%s', expected ssconfig.TypeError", testErr.Error())
+			return
+		}
+	}
+}
+
+func TestErrorPrints(t *testing.T) {
+	innerErr := errors.New("Error")
+	err := ConfigError{
+		[]FieldError{{
+			"Field",
+			innerErr,
+		}},
+	}
+	expected := "ConfigErrors: [{Field:Field Error:Error}]"
+	result := err.Error()
+
+	if result != expected {
+		t.Errorf("unexpected error string\ngot:  '%s'\nwant: '%s'", result, expected)
+	}
+
+	err2 := TypeError{"TypeName"}
+	result = err2.Error()
+	expected = "TypeName type not supported"
+
+	if result != expected {
+		t.Errorf("unexpected error string\ngot:  '%s'\nwant: '%s'", result, expected)
+	}
 }

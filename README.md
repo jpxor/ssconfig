@@ -1,3 +1,6 @@
+[![Go](https://github.com/jpxor/ssconfig/actions/workflows/go.yml/badge.svg)](https://github.com/jpxor/ssconfig/actions/workflows/go.yml)
+[![CodeQL](https://github.com/jpxor/ssconfig/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/jpxor/ssconfig/actions/workflows/codeql-analysis.yml)
+
 # ssconfig
 Super Simple Config:  read from json file, overwrite with ENV vars. no extra dependencies.
 

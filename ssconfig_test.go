@@ -24,6 +24,8 @@
 package ssconfig
 
 import (
+	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -49,7 +51,7 @@ func TestSuccessPaths(t *testing.T) {
 	os.Setenv("OverwriteFloat32", "4.2")
 	os.Setenv("OverwriteFloat64", "4.2")
 
-	type testestconfig struct {
+	type testconfig struct {
 		// File only
 		FileInt    int
 		FileString string
@@ -78,14 +80,19 @@ func TestSuccessPaths(t *testing.T) {
 		OverwriteFloat64 float64
 	}
 
-	var testconf testestconfig
-	err := Set{FilePath: "./test.json"}.Load(&testconf)
+	testLogger := log.New(ioutil.Discard, "", 0)
+	var testconf testconfig
+
+	err := Set{
+		FilePath: "./test.json",
+		Logger:   testLogger,
+	}.Load(&testconf)
 
 	if err != nil {
 		t.Errorf("got %+v, expected no errors", err.Error())
 	}
 
-	answerconf := testestconfig{
+	answerconf := testconfig{
 		FileInt:    42,
 		FileString: "42",
 		FileList:   []float32{4.2, 4.2, 4.2},

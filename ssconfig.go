@@ -53,6 +53,7 @@ func (err ConfigError) Error() string {
 type Set struct {
 	EnvPrefix string
 	FilePath  string
+	Logger    *log.Logger
 }
 
 // Load with default (nil) options
@@ -62,6 +63,11 @@ func Load(conf interface{}) *ConfigError {
 
 // Load with Set config options
 func (ssc Set) Load(conf interface{}) *ConfigError {
+
+	logger := ssc.Logger
+	if ssc.Logger == nil {
+		logger = log.Default()
+	}
 	var confError ConfigError
 
 	// load values from file if it exists
@@ -70,14 +76,14 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 		err = json.Unmarshal(confFile, &conf)
 		if err != nil {
 			confError.Fields = append(confError.Fields, FieldError{ssc.FilePath, err})
-			log.Printf("ssconfig: failed to parse file: %s\n", ssc.FilePath)
+			logger.Printf("ssconfig: failed to parse file: %s\n", ssc.FilePath)
 		} else {
-			log.Printf("ssconfig: %s ✓", ssc.FilePath)
+			logger.Printf("ssconfig: %s ✓\n", ssc.FilePath)
 		}
 
 	} else if ssc.FilePath != "" {
 		confError.Fields = append(confError.Fields, FieldError{ssc.FilePath, err})
-		log.Printf("ssconfig: %s (file not found)\n", ssc.FilePath)
+		logger.Printf("ssconfig: %s (file not found)\n", ssc.FilePath)
 	}
 
 	// load values from ENV if they exist, overwritting
@@ -106,12 +112,12 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 					default:
 						err := json.Unmarshal([]byte(env), field.Addr().Interface())
 						if err != nil {
-							log.Printf("ssconfig: %s (type %s): %s\n", confName, field.Type().String(), err)
+							logger.Printf("ssconfig: %s (type %s): %s\n", confName, field.Type().String(), err)
 							confError.Fields = append(confError.Fields, FieldError{confName, err})
 							continue
 						}
 					}
-					log.Printf("ssconfig: %s ✓", ssc.EnvPrefix+confName)
+					logger.Printf("ssconfig: %s ✓\n", ssc.EnvPrefix+confName)
 				}
 			}
 		}
@@ -120,5 +126,6 @@ func (ssc Set) Load(conf interface{}) *ConfigError {
 	if len(confError.Fields) > 0 {
 		return &confError
 	}
+
 	return nil
 }
